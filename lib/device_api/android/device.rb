@@ -79,7 +79,7 @@ module DeviceAPI
       end
 
       def display_name
-        Android::DeviceModel.marketing_name(manufacturer, model)
+        DeviceModel.marketing_name(manufacturer, model)
       end
 
       # Return the device range
@@ -249,14 +249,41 @@ module DeviceAPI
       # Check if the devices screen is currently turned on
       # @return [Boolean] true if the screen is on, otherwise false
       def screen_on?
-        power = get_powerinfo
-        return true if power['mScreenOn'].to_s.casecmp('true').zero? || power['Display Power: state'].to_s.casecmp('on').zero?
-        false
+        is_screen_on  = get_powerinfo('mScreenOn').casecmp('true').zero?
+        is_display_on = get_powerinfo('Display Power: state').casecmp('on').zero?
+
+        is_screen_on || is_display_on ? true : false
+      end
+
+      # Check if the devices screen is unlocked
+      # @return [Boolean] true if the screen is unlocked, otherwise false
+      def screen_unlocked?
+        wake_lock    = get_powerinfo('mHoldingWakeLockSuspendBlocker').casecmp('true').zero?
+        display_lock = get_powerinfo('mHoldingDisplaySuspendBlocker').casecmp('true').zero?
+
+        screen_on? && wake_lock && display_lock ? true : false
+      end
+
+      # Lock the device
+      def lock
+        ADB.keyevent(qualifier, '6') if screen_on?
       end
 
       # Unlock the device by sending a wakeup command
       def unlock
+        # This is used to unlock the device if its password protected, if the
+        # variable is not set then it will just try swipe to unlock
+        @device_pin = ENV['DEVICE_UNLOCK_PIN'].to_s
+
         ADB.keyevent(qualifier, '26') unless screen_on?
+        ADB.swipe(qualifier, swipe_coords) unless screen_unlocked?
+
+        return if @device_pin.empty?
+
+        unless screen_unlocked?
+          ADB.text(qualifier, @device_pin)
+          ADB.keyevent(qualifier, '66')
+        end
       end
 
       # Return the DPI of the attached device
@@ -268,7 +295,7 @@ module DeviceAPI
       # Return the device type based on the DPI
       # @return [Symbol] :tablet or :mobile based upon the devices DPI
       def type
-        device_class.casecmp('tablet').zero ? :tablet : :mobile
+        device_class.casecmp('tablet').zero? ? :tablet : :mobile
       end
 
       # Returns wifi status and access point name
@@ -321,10 +348,21 @@ module DeviceAPI
 
       def resolution
         res = ADB.dumpsys(qualifier, 'window | grep mUnrestrictedScreen')
-        /^.* (.*)x(.*)$/.match(res.first)
+        size = /^.* (.*)x(.*)$/.match(res.first)
+        [size[1], size[2]].map(&:to_i)
       end
 
       private
+
+      def swipe_coords
+        x, y = resolution
+
+        if version.split('.').first.to_i < 5
+          { x_from: x - 100, y_from: y / 2, x_to: x / 6, y_to: y / 2 }
+        else
+          { x_from: x / 2, y_from: y - 100, x_to: x / 2, y_to: y / 6 }
+        end
+      end
 
       def get_network_info
         ADB.get_network_info(qualifier)
@@ -352,7 +390,7 @@ module DeviceAPI
 
       def get_prop(key)
         @props = ADB.getprop(qualifier) if !@props || !@props[key]
-        @props[key]
+        @props[key].to_s
       end
 
       def get_dumpsys(key)
@@ -360,8 +398,9 @@ module DeviceAPI
         @props[key]
       end
 
-      def get_powerinfo
-        ADB.getpowerinfo(qualifier)
+      def get_powerinfo(key)
+        @props = ADB.getpowerinfo(qualifier) if !@props || !@props[key]
+        @props[key].to_s
       end
 
       def get_phoneinfo
