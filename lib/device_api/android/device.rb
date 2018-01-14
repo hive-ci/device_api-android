@@ -3,7 +3,7 @@
 require 'device_api/device'
 require 'device_api/android/adb'
 require 'device_api/android/aapt'
-require 'android/devices'
+require 'device_api/android/device_model'
 
 # DeviceAPI - an interface to allow for automation of devices
 module DeviceAPI
@@ -79,8 +79,7 @@ module DeviceAPI
       end
 
       def display_name
-        device = Android::Devices.search_by_model(model)
-        device.model unless device.nil?
+        Android::DeviceModel.marketing_name(manufacturer, model)
       end
 
       # Return the device range
@@ -97,6 +96,12 @@ module DeviceAPI
       # @return (String) serial number
       def serial_no
         get_prop('ro.serialno')
+      end
+
+      # Return the device class - i.e. tablet, phone, etc
+      # @return (String) Android device class
+      def device_class
+        get_prop('ro.build.characteristics')
       end
 
       # Return the device type
@@ -263,7 +268,7 @@ module DeviceAPI
       # Return the device type based on the DPI
       # @return [Symbol] :tablet or :mobile based upon the devices DPI
       def type
-        get_dpi.to_i > 533 ? :tablet : :mobile
+        device_class.casecmp('tablet').zero ? :tablet : :mobile
       end
 
       # Returns wifi status and access point name
