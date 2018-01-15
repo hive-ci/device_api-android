@@ -99,9 +99,11 @@ module DeviceAPI
         props = {}
         regex = Regexp.new(regex_string)
         data.each do |line|
-          if regex.match(line)
-            props[Regexp.last_match[1]] = Regexp.last_match[2]
-          end
+          next unless regex.match(line)
+          key   = Regexp.last_match[1].to_s.strip
+          value = Regexp.last_match[2].to_s.strip
+
+          props[key] = value unless value.empty?
         end
 
         props
@@ -112,7 +114,7 @@ module DeviceAPI
       # @return [Hash] hash containing power information from dumpsys
       def self.getpowerinfo(qualifier)
         lines = dumpsys(qualifier, 'power')
-        process_dumpsys('(.*)=(.*)', lines)
+        process_dumpsys('(.*)[=|:](.*)', lines)
       end
 
       def self.get_device_dpi(qualifier)
@@ -300,6 +302,13 @@ module DeviceAPI
       # @param [String] keyevent keyevent to send to the device
       def self.keyevent(qualifier, keyevent)
         shell(qualifier, "input keyevent #{keyevent}").stdout
+      end
+
+      # Sends a text event to the specified device
+      # @param [String] qualifier qualifier of device
+      # @param [String] textString enter string in textfield
+      def self.text(qualifier, textString)
+        shell(qualifier, "input text #{textString}").stdout
       end
 
       # ADB Shell command

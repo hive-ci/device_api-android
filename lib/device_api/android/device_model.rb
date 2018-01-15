@@ -1,31 +1,34 @@
 require 'csv'
 
-module Android
-  module DeviceModel
-    @csv_file = File.expand_path('device/devices.csv', File.dirname(__FILE__))
+module DeviceAPI
+  module Android
+    class DeviceModel < Device
+      @csv_file = File.expand_path('device/devices.csv', File.dirname(__FILE__))
 
-    def self.devices
-      return @devices unless @devices.nil?
-
-      rows = CSV.read(@csv_file)
-
-      @devices = rows.each_with_object({}) do |(manufacturer, marketing_name, _device, model), devices|
+      def self.marketing_name(manufacturer, model)
         key = device_model_key(manufacturer, model)
-        devices[key] = (marketing_name || model) if model && manufacturer
+        device_list.key?(key) ? device_list[key] : model
       end
-    end
 
-    def self.marketing_name(manufacturer, model)
-      key = device_model_key(manufacturer, model)
-      model && manufacturer ? @devices[key] || model : model
-    end
+      private
 
-    private
+      def self.device_list
+        return @devices unless @devices.nil?
+        device_list = {}
+        rows = CSV.read(@csv_file)
 
-    def self.device_model_key(manufacturer, model)
-      [manufacturer, model].map do |item|
-        item.to_s.strip.tr(' ', '_').downcase
-      end.join('')
+        rows.each_with_object({}) do |(manufacturer, marketing_name, _device, model), _devices|
+          key = device_model_key(manufacturer, model)
+          device_list[key] = (marketing_name || model) if model && manufacturer
+        end
+        device_list
+      end
+
+      def self.device_model_key(manufacturer, model)
+        [manufacturer, model].map do |item|
+          item.to_s.strip.tr(' ', '_').downcase
+        end.join('')
+      end
     end
   end
 end
