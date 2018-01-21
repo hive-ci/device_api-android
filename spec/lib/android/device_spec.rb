@@ -75,4 +75,19 @@ describe DeviceAPI::Android do
       expect { device.disconnect }.to raise_error(DeviceAPI::Android::DeviceDisconnectedWhenNotARemoteDevice)
     end
   end
+
+  describe '.model' do
+    it 'Returns model name' do
+      device = DeviceAPI::Android::Device.new(serial: 'SH34RW905290')
+
+      output = <<-EOF
+        [ro.product.manufacturer]: [samsung]
+        [ro.product.model]: [SM-T550]
+      EOF
+
+      allow(Open3).to receive(:capture3) { [output, '', STATUS_ZERO] }
+
+      expect(device.model).to eq('Galaxy Tab A 9.7')
+    end
+  end
 end

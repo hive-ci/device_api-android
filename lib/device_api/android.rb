@@ -1,5 +1,3 @@
-# Encoding: utf-8
-
 require 'device_api/android/adb'
 require 'device_api/android/device'
 require 'device_api/android/signing'
@@ -11,8 +9,8 @@ require 'device_api/android/plugins/battery'
 require 'device_api/android/plugins/disk'
 
 # Load additional device types
-require 'device_api/android/device/kindle'
-require 'device_api/android/device/samsung'
+require 'device_api/android/devices/kindle'
+require 'device_api/android/devices/samsung'
 
 module DeviceAPI
   module Android
@@ -61,7 +59,7 @@ module DeviceAPI
         man = Device.new(qualifier: qualifier, state: state).manufacturer
       rescue DeviceAPI::DeviceNotFound
         return :default
-      rescue => e
+      rescue StandardError => e
         puts "Unrecognised exception whilst finding device '#{qualifier}' (state: #{state})"
         puts e.message
         puts e.backtrace.inspect

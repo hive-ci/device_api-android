@@ -2,32 +2,43 @@ require 'csv'
 
 module DeviceAPI
   module Android
-    class DeviceModel < Device
-      @csv_file = File.expand_path('device/devices.csv', File.dirname(__FILE__))
+    module DeviceModel
+      def self.search(manufacturer, device_model, type = nil)
+        key_type = type || :name
+        key = device_model_key(manufacturer, device_model)
 
-      def self.marketing_name(manufacturer, model)
-        key = device_model_key(manufacturer, model)
-        device_list.key?(key) ? device_list[key] : model
+        if models.key?(key)
+          models[key][key_type]
+        elsif key_type == :name
+          device_model
+        end
+      end
+
+      def self.devices
+        return @devices unless @device_list.nil?
+        @csv_file = File.expand_path('devices/devices.csv', File.dirname(__FILE__))
+        @devices  = CSV.read(@csv_file)
+      end
+
+      def self.models
+        return @models unless @models.nil?
+        @models = {}
+        devices.shift
+        devices.each do |(manufacturer, marketing_name, device, model)|
+          device_type = device_model_key(manufacturer, model)
+
+          @models[device_type] = { manufacturer: manufacturer,
+                                   name: marketing_name || model,
+                                   device: device,
+                                   model: model }
+        end
+        @models
       end
 
       private
 
-      def self.device_list
-        return @devices unless @devices.nil?
-        device_list = {}
-        rows = CSV.read(@csv_file)
-
-        rows.each_with_object({}) do |(manufacturer, marketing_name, _device, model), _devices|
-          key = device_model_key(manufacturer, model)
-          device_list[key] = (marketing_name || model) if model && manufacturer
-        end
-        device_list
-      end
-
       def self.device_model_key(manufacturer, model)
-        [manufacturer, model].map do |item|
-          item.to_s.strip.tr(' ', '_').downcase
-        end.join('')
+        [manufacturer, model].map { |item| item.to_s.strip.tr(' ', '_').downcase }.join('')
       end
     end
   end

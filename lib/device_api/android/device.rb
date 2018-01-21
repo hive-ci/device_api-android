@@ -1,5 +1,3 @@
-# Encoding: utf-8
-
 require 'device_api/device'
 require 'device_api/android/adb'
 require 'device_api/android/aapt'
@@ -30,14 +28,15 @@ module DeviceAPI
       def initialize(options = {})
         # For devices connected with USB, qualifier and serial are same
         @qualifier = options[:qualifier]
-        @state = options[:state]
-        @serial = options[:serial] || @qualifier
-        @remote = options[:remote] ? true : false
-        if is_remote?
+        @state     = options[:state]
+        @serial    = options[:serial] || @qualifier
+        @remote    = options[:remote] ? true : false
+
+        return unless is_remote?
+
           set_ip_and_port
           @serial = serial_no unless %w[unknown offline].include? @state
         end
-      end
 
       def set_ip_and_port
         address = @qualifier.split(':')
@@ -78,10 +77,6 @@ module DeviceAPI
         ADB.devices.any? { |device| device.include? qualifier }
       end
 
-      def display_name
-        DeviceModel.marketing_name(manufacturer, model)
-      end
-
       # Return the device range
       # @return (String) device range string
       def range
@@ -110,9 +105,16 @@ module DeviceAPI
         get_prop('ro.product.device')
       end
 
-      # Return the device model
+      # Returns either the device marketing name or manufacturer model
+      # Example: Galaxy S6 or SM-G920V
       # @return (String) device model string
       def model
+        DeviceModel.search(manufacturer, manufacturer_model)
+      end
+
+      # Return the device model name used by the manufacturer
+      # @return (String) device model string
+      def manufacturer_model
         get_prop('ro.product.model')
       end
 
@@ -369,22 +371,22 @@ module DeviceAPI
       end
 
       def get_disk_info
-        @diskstat = DeviceAPI::Android::Plugin::Disk.new(qualifier: qualifier) unless @diskstat
+        @diskstat ||= DeviceAPI::Android::Plugin::Disk.new(qualifier: qualifier)
         @diskstat.process_stats
       end
 
       def get_battery_info
-        @battery = DeviceAPI::Android::Plugin::Battery.new(qualifier: qualifier) unless @battery
+        @battery ||= DeviceAPI::Android::Plugin::Battery.new(qualifier: qualifier)
         @battery
       end
 
       def get_memory_info
-        @memory = DeviceAPI::Android::Plugin::Memory.new(qualifier: qualifier) unless @memory
+        @memory ||= DeviceAPI::Android::Plugin::Memory.new(qualifier: qualifier)
         @memory
       end
 
       def get_app_props(key)
-        @app_props = AAPT.get_app_props(@apk) unless @app_props
+        @app_props ||= AAPT.get_app_props(@apk)
         @app_props.each { |x| break x[key] }
       end
 
