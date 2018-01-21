@@ -2,13 +2,11 @@ PATH
   remote: .
   specs:
     device_api-android (1.2.20)
-      android-devices
       device_api (~> 1.0.2)
 
 GEM
   remote: https://rubygems.org/
   specs:
-    android-devices (1.0.1)
     codeclimate-test-reporter (1.0.8)
       simplecov (<= 0.13)
     device_api (1.0.2)
