@@ -34,9 +34,9 @@ module DeviceAPI
 
         return unless is_remote?
 
-          set_ip_and_port
-          @serial = serial_no unless %w[unknown offline].include? @state
-        end
+        set_ip_and_port
+        @serial = serial_no unless %w[unknown offline].include? @state
+      end
 
       def set_ip_and_port
         address = @qualifier.split(':')
@@ -57,7 +57,7 @@ module DeviceAPI
           'offline'        => :offline,
           'unauthorized'   => :unauthorized,
           'no permissions' => :no_permissions,
-          'unknown' => :unknown
+          'unknown'        => :unknown
         }[@state]
       end
 
@@ -128,6 +128,29 @@ module DeviceAPI
       # @return (String) device Android version
       def version
         get_prop('ro.build.version.release')
+      end
+
+      # Return the Android OS name
+      # @return (String) Android  OS name
+      def os_name
+        os_version_number = version.to_f
+
+        case os_version_number
+        when 1.5       then 'Cupcake'
+        when 1.6       then 'Donut'
+        when 2.0..2.1  then 'Eclair'
+        when 2.2       then 'Froyo'
+        when 2.3       then 'Gingerbread'
+        when 3.0..3.2  then 'Honeycomb'
+        when 4.0       then 'Ice Cream Sandwich'
+        when 4.1..4.3  then 'Jelly Bean'
+        when 4.4       then 'KitKat'
+        when 5.0..5.1  then 'Lollipop'
+        when 6.0       then 'Marshmallow'
+        when 7.0..7.1  then 'Nougat'
+        when 8.0..8.1  then 'Oreo'
+        else 'Unknown'
+        end
       end
 
       # Return the battery level
@@ -260,10 +283,11 @@ module DeviceAPI
       # Check if the devices screen is unlocked
       # @return [Boolean] true if the screen is unlocked, otherwise false
       def screen_unlocked?
-        wake_lock    = get_powerinfo('mHoldingWakeLockSuspendBlocker').casecmp('true').zero?
-        display_lock = get_powerinfo('mHoldingDisplaySuspendBlocker').casecmp('true').zero?
+        wake_lock     = get_powerinfo('mHoldingWakeLockSuspendBlocker').casecmp('true').zero?
+        display_lock  = get_powerinfo('mHoldingDisplaySuspendBlocker').casecmp('true').zero?
+        user_activity = get_powerinfo('mUserActivityTimeoutOverrideFromWindowManager') == '-1'
 
-        screen_on? && wake_lock && display_lock ? true : false
+        screen_on? && wake_lock && display_lock && user_activity ? true : false
       end
 
       # Lock the device
@@ -275,17 +299,15 @@ module DeviceAPI
       def unlock
         # This is used to unlock the device if its password protected, if the
         # variable is not set then it will just try swipe to unlock
-        @device_pin = ENV['DEVICE_UNLOCK_PIN'].to_s
+        @device_pin = ENV['DEVICE_PIN'].to_s
 
         ADB.keyevent(qualifier, '26') unless screen_on?
         ADB.swipe(qualifier, swipe_coords) unless screen_unlocked?
 
         return if @device_pin.empty?
 
-        unless screen_unlocked?
-          ADB.text(qualifier, @device_pin)
-          ADB.keyevent(qualifier, '66')
-        end
+        ADB.text(qualifier, @device_pin) unless screen_unlocked?
+        ADB.keyevent(qualifier, '66') unless screen_unlocked?
       end
 
       # Return the DPI of the attached device

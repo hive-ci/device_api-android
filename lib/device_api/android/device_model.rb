@@ -16,7 +16,8 @@ module DeviceAPI
 
       def self.devices
         return @devices unless @device_list.nil?
-        @csv_file = File.expand_path('devices/devices.csv', File.dirname(__FILE__))
+
+        @csv_file = File.join(File.dirname(File.expand_path(__FILE__)), '/devices/devices.csv')
         @devices  = CSV.read(@csv_file)
       end
 
